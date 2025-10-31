@@ -1,5 +1,10 @@
 // components/Dashboard.jsx
 import React, { useState } from 'react';
+import TravelLog from './TravelLog';
+import FoodLog from './FoodLog';
+import PurchaseLog from './PurchaseLog';
+import EnergyLog from './EnergyLog';
+import AICoach from './AI';
 import { motion } from 'framer-motion';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -8,6 +13,8 @@ import {
 
 const Dashboard = () => {
   const [timeRange, setTimeRange] = useState('monthly');
+  // view: 'dashboard' | 'travel' | 'food' | 'purchase' | 'energy' | 'ai'
+  const [view, setView] = useState('dashboard');
 
   // Sample data for charts
   const emissionData = [
@@ -31,27 +38,45 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen relative pb-20 overflow-x-hidden flex" style={{
-      background: 'radial-gradient(ellipse at 60% 0%, #d1fae5 0%, #f0fdf4 60%, #e0f7ef 100%)',
+      background: 'linear-gradient(135deg, #e6f4f1 0%, #ecfdf5 50%, #e0f2f1 100%)',
     }}>
       {/* Sidebar Navigation */}
       <aside className="hidden md:flex flex-col w-60 min-h-screen bg-gradient-to-b from-green-700 via-emerald-600 to-green-400 shadow-2xl z-20 py-8 px-4 gap-2 border-r border-green-200">
         <nav className="flex flex-col gap-2 mt-2">
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20 focus:outline-none">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold ${view === 'dashboard' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('dashboard')}
+          >
             <span className="text-xl">🏠</span> Dashboard
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'travel' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('travel')}
+          >
             <span className="text-xl">🚗</span> Travel Log
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'food' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('food')}
+          >
             <span className="text-xl">🍔</span> Food Log
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'purchase' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('purchase')}
+          >
             <span className="text-xl">🛍️</span> Purchase Log
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'energy' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('energy')}
+          >
             <span className="text-xl">⚡</span> Energy Log
           </button>
-          <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'ai' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
+            onClick={() => setView('ai')}
+          >
             <span className="text-xl">🤖</span> AI Coach
           </button>
           <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
@@ -88,201 +113,179 @@ const Dashboard = () => {
             </a>
           </div>
         </div>
-        <motion.div
-          className="max-w-4xl mx-auto px-4 py-6 space-y-8"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}>
-          {/* Today's Footprint */}
-          <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 ring-2 ring-green-100 ring-opacity-40 backdrop-blur-sm">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-700">Today's Carbon Footprint</h2>
-                <p className="text-sm text-gray-500">As of {new Date().toLocaleDateString()}</p>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-gray-500">Compared to yesterday</div>
-                <div className="text-green-600 text-sm font-medium">↓ 12% lower</div>
-              </div>
-            </div>
-            <div className="text-center py-4">
-              <div className="text-5xl font-bold text-green-600 mb-2">18.2</div>
-              <div className="text-gray-600">kg CO₂e</div>
-            </div>
+        {view === 'travel' ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <TravelLog />
           </div>
-
-          {/* AQI and Forecast Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* AQI Widget */}
-            <div className="bg-gradient-to-br from-green-100 to-green-50 rounded-2xl shadow p-6 border border-green-200 ring-2 ring-emerald-100 ring-opacity-30">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-700">Air Quality Index</h3>
-                <div className="flex items-center space-x-2">
-                  <i className="fas fa-map-marker-alt text-gray-400"></i>
-                  <span className="text-sm text-gray-600">Karnataka</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-green-600 mb-1">42</div>
-                  <div className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                    Good
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-gray-600">Updated 2h ago</div>
-                  <div className="text-xs text-gray-500">Healthy air quality</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Predictive Forecast */}
-            <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white border border-emerald-300 ring-2 ring-green-300 ring-opacity-30">
-              <h3 className="text-lg font-semibold mb-3">Monthly Forecast</h3>
-              <div className="text-2xl font-bold mb-2">250 kg CO₂e</div>
-              <p className="text-green-100 mb-4">
-                Your forecast for next month. You are on track to beat it!
-              </p>
-              <div className="flex items-center space-x-2">
-                <i className="fas fa-trophy"></i>
-                <span className="text-sm">15% better than average</span>
-              </div>
-            </div>
+        ) : view === 'food' ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <FoodLog />
           </div>
-
-          {/* Charts Section */}
-          <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 ring-2 ring-green-100 ring-opacity-40 backdrop-blur-sm">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-700">Emission Analytics</h3>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setTimeRange('weekly')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    timeRange === 'weekly'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  Weekly
-                </button>
-                <button
-                  onClick={() => setTimeRange('monthly')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    timeRange === 'monthly'
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-gray-100 text-gray-600'
-                  }`}
-                >
-                  Monthly
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* Pie Chart - Emission Breakdown */}
-              <div>
-                <h4 className="text-md font-medium text-gray-700 mb-4 text-center">
-                  Emission Breakdown
-                </h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={emissionData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {emissionData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Bar Chart - Trend */}
-              <div>
-                <h4 className="text-md font-medium text-gray-700 mb-4 text-center">
-                  Emission Trend ({timeRange === 'weekly' ? 'Weekly' : 'Monthly'})
-                </h4>
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={trendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis label={{ value: 'kg CO₂e', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="emissions" fill="#10B981" name="Carbon Emissions" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
+        ) : view === 'purchase' ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <PurchaseLog />
           </div>
-
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow p-5 text-center border border-green-100 ring-2 ring-green-100 ring-opacity-30">
-              <div className="text-2xl font-bold text-green-600 mb-1">4.2</div>
-              <div className="text-sm text-gray-600">Travel kg</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-orange-500 mb-1">3.8</div>
-              <div className="text-sm text-gray-600">Food kg</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-blue-500 mb-1">2.1</div>
-              <div className="text-sm text-gray-600">Shopping kg</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-4 text-center">
-              <div className="text-2xl font-bold text-purple-500 mb-1">1.5</div>
-              <div className="text-sm text-gray-600">Energy kg</div>
-            </div>
+        ) : view === 'energy' ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <EnergyLog />
           </div>
-
-          {/* Recent Activities */}
-          <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Recent Activities</h3>
-            <div className="space-y-3">
-              {[
-                { type: 'travel', activity: 'Commute to work', co2: '2.4 kg', time: '2h ago' },
-                { type: 'food', activity: 'Lunch - Veg meal', co2: '1.2 kg', time: '4h ago' },
-                { type: 'shopping', activity: 'Grocery shopping', co2: '3.1 kg', time: '1d ago' },
-              ].map((activity, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b border-green-50 hover:bg-green-50 rounded-xl transition">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      activity.type === 'travel' ? 'bg-blue-100 text-blue-600' :
-                      activity.type === 'food' ? 'bg-orange-100 text-orange-600' :
-                      'bg-purple-100 text-purple-600'
-                    }`}>
-                      <i className={`fas ${
-                        activity.type === 'travel' ? 'fa-car' :
-                        activity.type === 'food' ? 'fa-utensils' : 'fa-shopping-bag'
-                      } text-sm`}></i>
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{activity.activity}</div>
-                      <div className="text-sm text-gray-500">{activity.time}</div>
-                    </div>
+        ) : view === 'ai' ? (
+          <div className="max-w-4xl mx-auto px-4 py-6">
+            <AICoach />
+          </div>
+        ) : (
+          <motion.div
+            className="max-w-4xl mx-auto px-4 py-6 space-y-8"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}>
+            {/* Today's & Monthly Footprint Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+              {/* Today's Carbon Footprint */}
+              <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 ring-2 ring-green-100 ring-opacity-40 backdrop-blur-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-700">Today's Carbon Footprint</h2>
+                    <p className="text-sm text-gray-500">As of {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold text-gray-900">{activity.co2}</div>
-                    <div className="text-sm text-gray-500">CO₂e</div>
+                    <div className="text-xs text-gray-500">Compared to yesterday</div>
+                    <div className="text-green-600 text-sm font-medium">↓ 12% lower</div>
                   </div>
                 </div>
-              ))}
+                <div className="text-center py-4">
+                  <div className="text-5xl font-bold text-green-600 mb-2">10.5</div>
+                  <div className="text-gray-600">kg CO₂e</div>
+                </div>
+              </div>
+              {/* Monthly Carbon Footprint */}
+              <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-emerald-100 ring-2 ring-emerald-100 ring-opacity-40 backdrop-blur-sm">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-700">Monthly Carbon Footprint</h2>
+                    <p className="text-sm text-gray-500">For {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500">Compared to last month</div>
+                    <div className="text-emerald-600 text-sm font-medium">↓ 6% lower</div>
+                  </div>
+                </div>
+                <div className="text-center py-4">
+                  <div className="text-5xl font-bold text-emerald-600 mb-2">412</div>
+                  <div className="text-gray-600">kg CO₂e</div>
+                </div>
+              </div>
             </div>
-          </div>
-        </motion.div>
+            {/* Emission Breakdown Pie Chart & Trend Bar Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Pie Chart */}
+              <div className="bg-white/90 rounded-3xl shadow-lg p-6 border border-green-100 flex flex-col items-center">
+                <h3 className="text-md font-semibold text-gray-700 mb-2">Monthly Emission Breakdown</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={emissionData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={70}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {emissionData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              {/* Bar Chart */}
+              <div className="bg-white/90 rounded-3xl shadow-lg p-6 border border-green-100 flex flex-col items-center">
+                <h3 className="text-md font-semibold text-gray-700 mb-2">Emission Trend (Monthly)</h3>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="emissions" fill="#10b981" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            {/* ML Forecast Card */}
+            <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <i className="fas fa-robot text-emerald-400"></i> ML Forecast
+                </h3>
+                <p className="text-gray-600 mb-2">Our AI predicts your carbon footprint for next month based on your current habits:</p>
+                <div className="text-3xl font-bold text-emerald-600">16.7 kg CO₂e</div>
+                <div className="text-gray-500 text-sm">(Projected: -8% improvement)</div>
+              </div>
+              <div className="flex-1 flex justify-center items-center">
+                <img src="https://cdn-icons-png.flaticon.com/512/2917/2917995.png" alt="Forecast" className="w-24 h-24 opacity-80" />
+              </div>
+            </div>
+            {/* AQI Card */}
+            <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-blue-100 flex flex-col md:flex-row items-center gap-6 mb-8">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                  <i className="fas fa-wind text-blue-400"></i> Air Quality Index (AQI)
+                </h3>
+                <div className="flex flex-col gap-2 mb-2">
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl font-bold text-blue-600">State (Karnataka):</span>
+                    <span className="text-2xl font-bold text-blue-600">65</span>
+                    <span className="text-blue-500 text-md">Moderate</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-2xl font-bold text-blue-600">City (Bangalore):</span>
+                    <span className="text-2xl font-bold text-blue-600">77</span>
+                    <span className="text-blue-500 text-md">Moderate</span>
+                  </div>
+                </div>
+                <div className="text-gray-500 text-sm">State: <span className="font-semibold text-blue-700">Karnataka</span> | City: <span className="font-semibold text-blue-700">Bangalore</span></div>
+                <div className="text-gray-400 text-xs mt-1">Last updated: {new Date().toLocaleTimeString()}</div>
+              </div>
+              <div className="flex-1 flex justify-center items-center">
+                <img src="https://cdn-icons-png.flaticon.com/512/728/728093.png" alt="AQI" className="w-20 h-20 opacity-80" />
+              </div>
+            </div>
+            {/* Recent Activities Card */}
+            <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 flex flex-col gap-4">
+              <h3 className="text-lg font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <i className="fas fa-history text-emerald-400"></i> Recent Activities
+              </h3>
+              <ul className="divide-y divide-green-50">
+                <li className="py-2 flex items-center gap-3">
+                  <span className="text-emerald-500"><i className="fas fa-bus"></i></span>
+                  <span className="flex-1">Commute to work (Bus)</span>
+                  <span className="text-xs text-gray-400">7:45 AM</span>
+                </li>
+                <li className="py-2 flex items-center gap-3">
+                  <span className="text-emerald-500"><i className="fas fa-shopping-cart"></i></span>
+                  <span className="flex-1">Grocery shopping</span>
+                  <span className="text-xs text-gray-400">6:10 PM</span>
+                </li>
+                <li className="py-2 flex items-center gap-3">
+                  <span className="text-emerald-500"><i className="fas fa-utensils"></i></span>
+                  <span className="flex-1">Lunch (Vegetarian)</span>
+                  <span className="text-xs text-gray-400">1:00 PM</span>
+                </li>
+                <li className="py-2 flex items-center gap-3">
+                  <span className="text-emerald-500"><i className="fas fa-bolt"></i></span>
+                  <span className="flex-1">Turned off lights</span>
+                  <span className="text-xs text-gray-400">8:30 AM</span>
+                </li>
+              </ul>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

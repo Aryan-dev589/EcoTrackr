@@ -10,7 +10,9 @@ function Login() {
     navigate('/dashboard');
   };
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-green-100 to-emerald-50 py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center" style={{
+      background: 'linear-gradient(135deg, #e6f4f1 0%, #ecfdf5 50%, #e0f2f1 100%)',
+    }}>
       <motion.div
         className="w-full max-w-md bg-white/90 rounded-3xl shadow-xl p-8 border border-green-100"
         initial={{ opacity: 0, y: 40 }}
