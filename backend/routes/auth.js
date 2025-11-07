@@ -1,87 +1,84 @@
+// backend/routes/auth.js
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const db = require("../db");   // make sure db.js is in backend/
+const jwt = require("jsonwebtoken"); // Make sure this is imported
+const db = require("../db");
 
 const router = express.Router();
 
 // ------------------- SIGNUP -------------------
 router.post("/signup", (req, res) => {
-  const { name, email, password, city, country } = req.body;
+    // Use the correct fields from our schema
+    const { username, email, password, country_code, state_code } = req.body;
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: "Please fill all required fields" });
-  }
-
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  db.query(
-    "INSERT INTO user (name, email, password_hash, city, country) VALUES (?, ?, ?, ?, ?)",
-    [name, email, hashedPassword, city || null, country || null],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).json({ error: "Signup failed" });
-      }
-      res.json({ message: "User registered successfully" });
+    if (!username || !email || !password || !country_code || !state_code) {
+        return res.status(400).json({ error: "Please fill all required fields" });
     }
-  );
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Use the correct table name ('users') and columns
+    db.query(
+        "INSERT INTO users (username, email, password_hash, country_code, state_code) VALUES (?, ?, ?, ?, ?)",
+        [username, email, hashedPassword, country_code, state_code],
+        (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({ error: "Email or username may already exist." });
+            }
+            res.status(201).json({ message: "User registered successfully" });
+        }
+    );
 });
-// LOGIN route
+
+// ------------------- LOGIN -------------------
 router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  // Check if fields are provided
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
-
-  // Check if user exists
-  const sql = "SELECT * FROM user WHERE email=?";
-  db.query(sql, [email], async (err, results) => {
-    if (err) {
-      console.error("Error checking user:", err);
-      return res.status(500).json({ error: "Database error" });
+    if (!email || !password) {
+        return res.status(400).json({ error: "Email and password are required" });
     }
 
-    if (results.length === 0) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+    // Use the correct table name ('users')
+    const sql = "SELECT * FROM users WHERE email=?";
+    db.query(sql, [email], async (err, results) => {
+        if (err) {
+            console.error("Error checking user:", err);
+            return res.status(500).json({ error: "Database error" });
+        }
+        if (results.length === 0) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
 
-    const user = results[0];
+        const user = results[0];
 
-    // Compare password with hash
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return res.status(401).json({ error: "Invalid email or password" });
-    }
+        const match = await bcrypt.compare(password, user.password_hash);
+        if (!match) {
+            return res.status(401).json({ error: "Invalid email or password" });
+        }
 
-    // Success → send user info (you could also send a JWT later)
-    res.status(200).json({
-      message: "Login successful",
-      user: {
-        id: user.user_id,
-        name: user.name,
-        email: user.email,
-        city: user.city,
-        country: user.country,
-      },
+        // Create the JWT payload
+        const payload = {
+            user: {
+                id: user.user_id,
+                username: user.username,
+                state_code: user.state_code // This is essential for energy logs
+            }
+        };
+
+        // Sign the token using your secret key from .env
+        const token = jwt.sign(
+            payload,
+            process.env.JWT_SECRET, // Make sure JWT_SECRET is in your .env file
+            { expiresIn: '1d' }
+        );
+
+        // Send the token to the client
+        res.status(200).json({
+            message: "Login successful",
+            token: token // Send the token
+        });
     });
-  });
 });
-
-// ------------------- GET ALL USERS -------------------
-router.get("/users", (req, res) => {
-  db.query("SELECT * FROM user", (err, results) => {
-    if (err) {
-      console.error("Error fetching users:", err);
-      res.status(500).json({ error: "Database error" });
-    } else {
-      res.json(results);
-    }
-  });
-});
-
 
 module.exports = router;
-
-

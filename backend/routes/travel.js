@@ -1,89 +1,83 @@
+// backend/routes/travel.js
 const express = require("express");
-const router = express.Router();
 const db = require("../db");
+const { authenticateToken } = require("../middleware/checkAuth.js"); 
 
-// ----------------- Log a Trip -----------------
-router.post("/log", (req, res) => {
-  const { user_id, mode, fuel_type, car_size, start_location, end_location, distance_km } = req.body;
+const router = express.Router();
 
-  if (!user_id || !mode || !distance_km) {
-    return res.status(400).json({ error: "User ID, mode, and distance are required" });
-  }
+router.post("/log", authenticateToken, (req, res) => {
+    
+    // 1. Get user ID and request data
+    const userId = req.user.id; 
+    // Get data from the request body (e.g., "Lower medium", "Petrol", 150)
+    const { categoryName, fuelType, distance } = req.body;
 
-  // Fetch emission factor
-  let query = "SELECT factor FROM emissionfactors WHERE mode = ? AND fuel_type = ?";
-  let params = [mode, fuel_type];
+    // Validate input
+    if (!categoryName || !fuelType || !distance) {
+        return res.status(400).json({ message: "Missing required fields: categoryName, fuelType, or distance" });
+    }
 
-  if (mode === "car") {
-    query += " AND car_size = ?";
-    params.push(car_size);
-  }
+    // --- START OF NEW LOGIC ---
 
-  db.query(query, params, (err, results) => {
-    if (err) return res.status(500).json({ error: "Server error" });
-    if (results.length === 0) return res.status(404).json({ error: "No emission factor found" });
-
-    const emissionFactor = results[0].factor;
-    const emission = distance_km * emissionFactor;
-
-    // Insert trip log
-    const insertQuery = `
-      INSERT INTO travellogs (user_id, mode, fuel_type, car_size, start_location, end_location, distance_km, emission, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    // 2. Find the emission factor and factor_id from your 'vehicle_emission_factors' table
+    const factorQuery = `
+        SELECT factor_id, emission_factor, unit 
+        FROM vehicle_emission_factors 
+        WHERE category_name = ? AND fuel_type = ?
     `;
-    db.query(
-      insertQuery,
-      [user_id, mode, fuel_type || null, car_size || null, start_location || null, end_location || null, distance_km, emission],
-      (err, result) => {
-        if (err) return res.status(500).json({ error: "Failed to log travel" });
+    const queryParams = [categoryName, fuelType];
 
-        res.json({
-          message: "Travel log saved successfully",
-          travel_id: result.insertId,
-          emission: emission.toFixed(2) + " kg CO₂"
+    db.query(factorQuery, queryParams, (err, factorResults) => {
+        if (err) {
+            console.error("DB error fetching factor:", err);
+            return res.status(500).json({ message: "Database error (1)" });
+        }
+
+        if (factorResults.length === 0) {
+            // No factor found for this combination
+            return res.status(400).json({ 
+                message: "Could not find emission factor for this combination.",
+                sent: req.body 
+            });
+        }
+
+        // 3. Get data and calculate emissions
+        const factorData = factorResults[0];
+        const vehicleFactorId = factorData.factor_id; // The ID of the factor (e.g., 5)
+        const emissionFactor = factorData.emission_factor; // The gCO2e/km value (e.g., 145.3700)
+        
+        let totalEmissions = distance * emissionFactor; // This is in grams (gCO2e)
+
+        // 4. IMPORTANT: Convert grams to kilograms for storage
+        // Your factor is in 'gCO2e/km'. It's best to store 'total_emissions' in kg.
+        // Your 'total_emissions' column (decimal 10,4) is perfect for this.
+        if (factorData.unit === 'gCO2e/km') {
+            totalEmissions = totalEmissions / 1000; // Convert g to kg
+        }
+
+        // 5. Save the complete log to your 'travel_logs' table
+        const insertQuery = `
+            INSERT INTO travel_logs (user_id, vehicle_factor_id, distance, total_emissions) 
+            VALUES (?, ?, ?, ?)
+        `;
+        // Note: log_date is set automatically by MySQL (CURRENT_TIMESTAMP)
+        const insertParams = [userId, vehicleFactorId, distance, totalEmissions];
+
+        db.query(insertQuery, insertParams, (insertErr, insertResult) => {
+            if (insertErr) {
+                console.error("DB error saving log:", insertErr);
+                return res.status(500).json({ message: "Database error (2)" });
+            }
+
+            // 6. Send success response
+            res.status(201).json({ // 201 "Created" is a good status for this
+                message: "Travel log saved and emissions calculated!",
+                log_id: insertResult.insertId,
+                calculated_emissions_kg: totalEmissions
+            });
         });
-      }
-    );
-  });
-});
-
-// ----------------- Get Latest Trip -----------------
-router.get("/latest/:user_id", (req, res) => {
-  const { user_id } = req.params;
-  db.query(
-    "SELECT * FROM travellogs WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
-    [user_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Server error" });
-      res.json(results[0] || { message: "No trips found" });
-    }
-  );
-});
-
-// ----------------- Get Daily Emission -----------------
-router.get("/daily/:user_id", (req, res) => {
-  const { user_id } = req.params;
-  db.query(
-    "SELECT COALESCE(SUM(emission), 0) AS daily_emission FROM travellogs WHERE user_id = ? AND DATE(created_at) = CURDATE()",
-    [user_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Server error" });
-      res.json({ daily_emission: results[0].daily_emission });
-    }
-  );
-});
-
-// ----------------- Get Monthly Emission -----------------
-router.get("/monthly/:user_id", (req, res) => {
-  const { user_id } = req.params;
-  db.query(
-    "SELECT COALESCE(SUM(emission), 0) AS monthly_emission FROM travellogs WHERE user_id = ? AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())",
-    [user_id],
-    (err, results) => {
-      if (err) return res.status(500).json({ error: "Server error" });
-      res.json({ monthly_emission: results[0].monthly_emission });
-    }
-  );
+    });
+    // --- END OF NEW LOGIC ---
 });
 
 module.exports = router;
