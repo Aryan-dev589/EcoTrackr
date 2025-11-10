@@ -5,11 +5,32 @@ const { authenticateToken } = require("../middleware/checkAuth.js");
 
 const router = express.Router();
 
+// --- NEW ROUTE: Get all items ---
+// This route will be called by the frontend when the page loads
+router.get("/items", authenticateToken, (req, res) => {
+    const query = `
+        SELECT item_name, emission_factor 
+        FROM item_embodied_factors
+    `;
+    // We don't need to sort, but it's nice for the dropdown
+    // ORDER BY item_name ASC 
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("DB error fetching items:", err);
+            return res.status(500).json({ message: "Database error" });
+        }
+        // Send the list of items back as JSON
+        res.json(results);
+    });
+});
+
+// --- EXISTING ROUTE: Log a new purchase ---
+// (This code is unchanged and is still correct)
 router.post("/log", authenticateToken, (req, res) => {
     
     // 1. Get user ID and request data
     const userId = req.user.id; 
-    // Get data from the request body (e.g., "Cotton T-Shirt", 2)
     const { itemName, quantity } = req.body;
 
     // Validate input
@@ -21,9 +42,7 @@ router.post("/log", authenticateToken, (req, res) => {
         return res.status(400).json({ message: "Quantity must be a positive integer." });
     }
 
-    // --- START OF LOGIC ---
-
-    // 2. Find the emission factor and factor_id from your 'item_embodied_factors' table
+    // 2. Find the emission factor and factor_id
     const factorQuery = `
         SELECT factor_id, emission_factor 
         FROM item_embodied_factors 
@@ -38,7 +57,6 @@ router.post("/log", authenticateToken, (req, res) => {
         }
 
         if (factorResults.length === 0) {
-            // No factor found for this item name
             return res.status(400).json({ 
                 message: "Could not find emission factor for this item.",
                 sent: req.body 
@@ -48,13 +66,11 @@ router.post("/log", authenticateToken, (req, res) => {
         // 3. Get data and calculate emissions
         const factorData = factorResults[0];
         const itemFactorId = factorData.factor_id;
-        const emissionFactor = factorData.emission_factor; // This is in kgCO2e/piece
+        const emissionFactor = factorData.emission_factor; 
 
-        // 4. Calculate total emissions (simple multiplication)
-        // (e.g., 2 t-shirts * 7.8 kgCO2e/piece = 15.6 kgCO2e)
         const totalEmissions = quantity * emissionFactor;
 
-        // 5. Save the complete log to your 'purchase_logs' table
+        // 5. Save the complete log
         const insertQuery = `
             INSERT INTO purchase_logs (user_id, item_factor_id, quantity, total_emissions) 
             VALUES (?, ?, ?, ?)
@@ -75,7 +91,6 @@ router.post("/log", authenticateToken, (req, res) => {
             });
         });
     });
-    // --- END OF LOGIC ---
 });
 
 module.exports = router;
