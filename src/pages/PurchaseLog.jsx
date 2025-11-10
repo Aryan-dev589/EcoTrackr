@@ -6,10 +6,10 @@ import api from '../api/axiosconfig'; // Import our central API client
 // Corrected database from your screenshot and text
 const ITEM_DATABASE = [
   { name: 'iPhone 15 Pro', emission: 66.0000 },
-  { name: 'Samsung Galaxy S24', emission: 45.0000 },
+  { name: 'Samsung Galaxy S24', emission: 46.0000 },
   { name: 'Generic Smartphone', emission: 70.0000 },
   { name: 'Macbook Air M3 (15-inch)', emission: 158.0000 },
-  { name: 'Standard Laptop', emission: 300.0000 },
+  { name: 'Standard Laptop', emission: 200.0000 },
   { name: 'Cotton T-Shirt', emission: 7.0000 }, // Corrected to 7.0
   { name: 'Generic Jeans', emission: 33.4000 }
 ];
@@ -201,7 +201,7 @@ const PurchaseLog = () => {
               </label>
               <select
                 value={formData.itemName}
-                onChange={(e) => handleInputChange('itemName', e.g.target.value)}
+                onChange={(e) => handleInputChange('itemName', e.target.value)}
                 className="block w-full py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {items.map((item) => (
