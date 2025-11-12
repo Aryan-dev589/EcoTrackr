@@ -5,11 +5,30 @@ const { authenticateToken } = require("../middleware/checkAuth.js");
 
 const router = express.Router();
 
+// --- 1. NEW ROUTE: Get all devices for the dropdown ---
+router.get("/devices", authenticateToken, (req, res) => {
+    const query = `
+        SELECT device_name, consumption_rate, unit 
+        FROM device_consumption_factors
+        ORDER BY device_name ASC
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("DB error fetching devices:", err);
+            return res.status(500).json({ message: "Database error" });
+        }
+        // Send the list of devices back as JSON
+        res.json(results);
+    });
+});
+
+// --- 2. EXISTING ROUTE: Log a new device usage ---
+// (This code is unchanged and is 100% correct)
 router.post("/log", authenticateToken, (req, res) => {
     
     // 1. Get user ID and request data
     const userId = req.user.id; 
-    // Get data from the request body (e.g., "Standard TV", 2.5)
     const { deviceName, usageDuration } = req.body;
 
     // Validate input
@@ -21,7 +40,6 @@ router.post("/log", authenticateToken, (req, res) => {
     }
 
     // --- START OF 3-STEP LOGIC ---
-
     // STEP 1: Get the device's consumption rate (kWh/hour)
     const deviceQuery = `
         SELECT factor_id, consumption_rate 
@@ -42,7 +60,6 @@ router.post("/log", authenticateToken, (req, res) => {
         const consumptionRate = deviceResults[0].consumption_rate; // e.g., 0.12500 kWh/hour
 
         // STEP 2: Get the user's grid emission factor (kgCO2e/kWh)
-        // We find the user's state_code and join with grid_emission_factors to get their rate
         const gridQuery = `
             SELECT g.emission_factor 
             FROM users u
@@ -56,23 +73,15 @@ router.post("/log", authenticateToken, (req, res) => {
                 return res.status(500).json({ message: "Database error (2)" });
             }
             if (gridResults.length === 0) {
-                // This means the user's state_code (e.g., 'IN-KA') isn't in grid_emission_factors
                 return res.status(400).json({ message: "Could not find grid emission factor for user's location." });
             }
 
-            const gridEmissionFactor = gridResults[0].emission_factor; // e.g., 0.7100 kgCO2e/kWh
+            const gridEmissionFactor = gridResults[0].emission_factor; 
 
             // STEP 3: Calculate emissions and save the log
-            
-            // First, get total energy in kWh
-            // (e.g., 2.5 hours * 0.12500 kWh/hour = 0.3125 kWh)
             const totalEnergyConsumed = usageDuration * consumptionRate;
-            
-            // Then, get total emissions in kg
-            // (e.g., 0.3125 kWh * 0.7100 kgCO2e/kWh = 0.221875 kgCO2e)
             const totalEmissions = totalEnergyConsumed * gridEmissionFactor;
 
-            // Finally, save to the database
             const insertQuery = `
                 INSERT INTO device_usage_logs (user_id, device_factor_id, usage_duration, total_emissions) 
                 VALUES (?, ?, ?, ?)
@@ -84,8 +93,6 @@ router.post("/log", authenticateToken, (req, res) => {
                     console.error("DB error saving device log:", err);
                     return res.status(500).json({ message: "Database error (3)" });
                 }
-
-                // 6. Send success response
                 res.status(201).json({
                     message: "Device log saved and emissions calculated!",
                     log_id: insertResult.insertId,

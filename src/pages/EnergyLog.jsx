@@ -1,86 +1,59 @@
 // src/pages/EnergyLog.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../api/axiosconfig'; // 1. Import our central API client
 
 const EnergyLog = () => {
   const navigate = useNavigate();
   const [logType, setLogType] = useState('device'); // 'device' or 'bill'
+  
+  // --- 2. NEW State for REAL data ---
+  const [devices, setDevices] = useState([]); // To store devices from DB
+  const [isLoading, setIsLoading] = useState(true); // For loading devices
+  const [apiError, setApiError] = useState(null); // For submit errors
+  const [finalEmission, setFinalEmission] = useState(null); // For success screen
+
   const [formData, setFormData] = useState({
     // Device logging fields
-    deviceId: '',
+    deviceName: '', // Will be set after devices load
     duration: '',
     durationUnit: 'hours',
     
     // Bill logging fields
     electricityUsed: '',
-    energyUnit: 'kWh',
+    energyUnit: 'kWh', // 'kWh', 'MWh', or 'units'
     startDate: '',
     endDate: '',
-    
-    // Common
-    estimatedEmission: null
   });
 
-  const [isCalculating, setIsCalculating] = useState(false);
-
-  // Mock user's registered devices
-  const userDevices = [
-    { id: '1', name: 'My iPhone 15', type: 'smartphone', powerConsumption: 5 }, // watts
-    { id: '2', name: 'MacBook Pro', type: 'laptop', powerConsumption: 60 },
-    { id: '3', name: 'Gaming PC', type: 'computer', powerConsumption: 400 },
-    { id: '4', name: 'Refrigerator', type: 'appliance', powerConsumption: 150 },
-    { id: '5', name: 'Air Conditioner', type: 'appliance', powerConsumption: 1000 },
-    { id: '6', name: 'LED TV', type: 'entertainment', powerConsumption: 80 },
-    { id: '7', name: 'Washing Machine', type: 'appliance', powerConsumption: 500 },
-    { id: '8', name: 'Electric Vehicle', type: 'transport', powerConsumption: 6500 }
-  ];
-
-  // Calculate emissions whenever relevant fields change
+  // --- 3. NEW useEffect to fetch devices from your NEW backend route ---
   useEffect(() => {
-    calculateEmission();
-  }, [logType, formData.deviceId, formData.duration, formData.durationUnit, formData.electricityUsed]);
-
-  const calculateEmission = () => {
-    if ((logType === 'device' && (!formData.deviceId || !formData.duration)) ||
-        (logType === 'bill' && !formData.electricityUsed)) {
-      setFormData(prev => ({ ...prev, estimatedEmission: null }));
-      return;
-    }
-
-    setIsCalculating(true);
-    
-    setTimeout(() => {
-      let emission = 0;
-      
-      if (logType === 'device') {
-        const device = userDevices.find(d => d.id === formData.deviceId);
-        if (device) {
-          // Convert duration to hours
-          let durationHours = parseFloat(formData.duration);
-          if (formData.durationUnit === 'minutes') {
-            durationHours = durationHours / 60;
+    // Only fetch devices if we're on the device tab
+    if (logType === 'device') {
+      setIsLoading(true);
+      const fetchDevices = async () => {
+        try {
+          const response = await api.get('/api/device/devices');
+          setDevices(response.data);
+          
+          if (response.data.length > 0) {
+            setFormData(prev => ({
+              ...prev,
+              deviceName: response.data[0].device_name
+            }));
           }
-          
-          // Calculate kWh: (watts * hours) / 1000
-          const kWh = (device.powerConsumption * durationHours) / 1000;
-          
-          // Calculate CO2: kWh * emission factor (0.5 kg CO2/kWh - average grid)
-          emission = kWh * 0.5;
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Failed to fetch devices", err);
+          setApiError("Could not load devices from database.");
+          setIsLoading(false);
         }
-      } else {
-        // Monthly bill calculation
-        const kWh = parseFloat(formData.electricityUsed);
-        // Convert units if needed
-        const actualKWh = formData.energyUnit === 'kWh' ? kWh : 
-                         formData.energyUnit === 'MWh' ? kWh * 1000 : kWh;
-        
-        emission = actualKWh * 0.5; // 0.5 kg CO2 per kWh
-      }
-      
-      setFormData(prev => ({ ...prev, estimatedEmission: emission }));
-      setIsCalculating(false);
-    }, 300);
-  };
+      };
+      fetchDevices();
+    }
+  }, [logType]); // Re-run this if the user switches log types
+
+  // --- 4. REMOVED mock 'userDevices' and mock 'calculateEmission' useEffect ---
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -89,31 +62,75 @@ const EnergyLog = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  // --- 5. THE NEW, CONNECTED handleSubmit function ---
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (logType === 'device' && (!formData.deviceId || !formData.duration)) {
-      alert('Please select a device and enter duration');
-      return;
-    }
-    
-    if (logType === 'bill' && !formData.electricityUsed) {
-      alert('Please enter electricity usage');
-      return;
-    }
+    setApiError(null);
+    setFinalEmission(null);
 
-    const logData = {
-      logType,
-      ...formData,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('Energy log data:', logData);
-    alert(`Energy use logged successfully! Emission: ${formData.estimatedEmission.toFixed(2)} kg CO₂e`);
-    navigate('/dashboard');
+    try {
+      let response; // To store the result from either API
+
+      // --- BRANCH 1: User is logging a DEVICE ---
+      if (logType === 'device') {
+        if (!formData.deviceName || !formData.duration) {
+          setApiError('Please select a device and enter duration');
+          return;
+        }
+
+        // Convert duration to hours (which backend needs)
+        let durationHours = parseFloat(formData.duration);
+        if (formData.durationUnit === 'minutes') {
+          durationHours = durationHours / 60;
+        }
+
+        const devicePayload = {
+          deviceName: formData.deviceName,
+          usageDuration: durationHours
+        };
+        
+        console.log("Sending to /api/device/log:", devicePayload);
+        response = await api.post('/api/device/log', devicePayload);
+
+      // --- BRANCH 2: User is logging a BILL ---
+      } else if (logType === 'bill') {
+        if (!formData.electricityUsed) {
+          setApiError('Please enter electricity usage');
+          return;
+        }
+
+        // Convert all units to kWh (which backend needs)
+        let kwh = parseFloat(formData.electricityUsed);
+        if (formData.energyUnit === 'MWh') {
+          kwh = kwh * 1000;
+        }
+        // 'units' is usually 1-to-1 with kWh, so we treat it the same
+
+        const billPayload = {
+          kwhConsumed: kwh,
+          billingStartDate: formData.startDate || null,
+          billingEndDate: formData.endDate || null
+        };
+        
+        console.log("Sending to /api/energy/log:", billPayload);
+        response = await api.post('/api/energy/log', billPayload);
+      }
+
+      // --- SUCCESS ---
+      // Both routes return the same JSON shape, so this works for both
+      setFinalEmission(response.data.calculated_emissions_kg);
+
+    } catch (err) {
+      if (err.response && err.response.data.message) {
+        setApiError(err.response.data.message);
+      } else {
+        setApiError("An error occurred. Please try again.");
+      }
+      console.error(err);
+    }
   };
-
-  // Set default dates for monthly bill
+  
+  // (Auto-set dates effect is unchanged)
   useEffect(() => {
     if (logType === 'bill') {
       const endDate = new Date();
@@ -128,26 +145,15 @@ const EnergyLog = () => {
     }
   }, [logType]);
 
-  const getDeviceIcon = (type) => {
-    const icons = {
-      smartphone: '📱',
-      laptop: '💻',
-      computer: '🖥️',
-      appliance: '🔌',
-      entertainment: '📺',
-      transport: '🚗'
-    };
-    return icons[type] || '⚡';
-  };
 
   return (
-  <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%)' }}>
-      {/* Header */}
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%)' }}>
+      {/* Header (Unchanged) */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="flex items-center space-x-4">
             <button 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/Dashboard')}
               className="flex items-center text-gray-600 hover:text-gray-900"
             >
               <i className="fas fa-arrow-left mr-2"></i>
@@ -160,38 +166,31 @@ const EnergyLog = () => {
 
       {/* Main Form */}
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Real-time Emission Display */}
-          {formData.estimatedEmission !== null && formData.estimatedEmission > 0 && (
-            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg shadow-sm p-6 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Estimated Carbon Emission</h3>
-                  <div className="flex items-baseline space-x-2">
-                    {isCalculating ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        <span>Calculating...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="text-3xl font-bold">{formData.estimatedEmission.toFixed(2)}</span>
-                        <span className="text-lg">kg CO₂e</span>
-                      </>
-                    )}
-                  </div>
-                  <p className="text-purple-100 text-sm mt-2">
-                    {logType === 'device' ? 'Based on device usage' : 'Based on monthly electricity consumption'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="text-4xl">⚡</div>
-                </div>
-              </div>
+        
+        {/* --- 6. NEW SUCCESS SCREEN --- */}
+        {finalEmission !== null ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <h2 className="text-2xl font-bold text-purple-700 mb-4">Energy Log Saved!</h2>
+            <div className="text-4xl font-extrabold text-purple-600 mb-2">
+              {finalEmission.toFixed(2)} kg CO₂e
             </div>
-          )}
+            <p className="text-gray-700 mb-6">
+              {logType === 'device' ? 'Emissions from your device usage.' : 'Emissions from your monthly bill.'}
+            </p>
+            <button
+              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-md"
+              onClick={() => navigate('/Dashboard')}
+            >
+              Back to Dashboard
+            </button>
+          </div>
+        ) : (
+        
+        // --- 7. YOUR EXISTING FORM (NOW CONNECTED) ---
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Real-time Display REMOVED (too complex, requires fetching grid factor) */}
 
-          {/* Log Type Toggle */}
+          {/* Log Type Toggle (Unchanged) */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Log Type
@@ -222,7 +221,7 @@ const EnergyLog = () => {
             </div>
           </div>
 
-          {/* Device Logging Form */}
+          {/* --- 8. UPDATED Device Logging Form --- */}
           {logType === 'device' && (
             <>
               <div className="bg-white rounded-lg shadow-sm p-6">
@@ -230,20 +229,24 @@ const EnergyLog = () => {
                   Device / Appliance *
                 </label>
                 <select
-                  value={formData.deviceId}
-                  onChange={(e) => handleInputChange('deviceId', e.target.value)}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  value={formData.deviceName}
+                  onChange={(e) => handleInputChange('deviceName', e.target.value)}
+                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
+                  disabled={isLoading}
                 >
-                  <option value="">Select a device</option>
-                  {userDevices.map((device) => (
-                    <option key={device.id} value={device.id}>
-                      {getDeviceIcon(device.type)} {device.name} ({device.powerConsumption}W)
-                    </option>
-                  ))}
+                  {isLoading ? (
+                    <option>Loading devices...</option>
+                  ) : (
+                    devices.map((device) => (
+                      <option key={device.device_name} value={device.device_name}>
+                        {device.device_name} ({(device.consumption_rate * 1000).toFixed(0)}W)
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p className="text-sm text-gray-500 mt-2">
-                  Lists all registered devices/appliances
+                  Lists all devices from your database.
                 </p>
               </div>
 
@@ -256,7 +259,7 @@ const EnergyLog = () => {
                     type="number"
                     value={formData.duration}
                     onChange={(e) => handleInputChange('duration', e.target.value)}
-                    className="flex-1 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
+                    className="flex-1 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
                     placeholder="0"
                     min="0"
                     step="0.1"
@@ -265,7 +268,7 @@ const EnergyLog = () => {
                   <select
                     value={formData.durationUnit}
                     onChange={(e) => handleInputChange('durationUnit', e.target.value)}
-                    className="w-32 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-32 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="minutes">Minutes</option>
                     <option value="hours">Hours</option>
@@ -278,7 +281,7 @@ const EnergyLog = () => {
             </>
           )}
 
-          {/* Monthly Bill Logging Form */}
+          {/* --- 9. UPDATED Monthly Bill Logging Form --- */}
           {logType === 'bill' && (
             <>
               <div className="bg-white rounded-lg shadow-sm p-6">
@@ -290,8 +293,8 @@ const EnergyLog = () => {
                     type="number"
                     value={formData.electricityUsed}
                     onChange={(e) => handleInputChange('electricityUsed', e.target.value)}
-                    className="flex-1 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-center"
-                    placeholder="0"
+                    className="flex-1 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center"
+                    placeholder="e.g., 350"
                     min="0"
                     step="0.1"
                     required
@@ -299,7 +302,7 @@ const EnergyLog = () => {
                   <select
                     value={formData.energyUnit}
                     onChange={(e) => handleInputChange('energyUnit', e.target.value)}
-                    className="w-32 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-32 px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="kWh">kWh</option>
                     <option value="MWh">MWh</option>
@@ -307,13 +310,13 @@ const EnergyLog = () => {
                   </select>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  From your monthly utility bill
+                  From your monthly utility bill. "Units" are assumed to be kWh.
                 </p>
               </div>
 
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Billing Period *
+                  Billing Period (Optional)
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -322,8 +325,7 @@ const EnergyLog = () => {
                       type="date"
                       value={formData.startDate}
                       onChange={(e) => handleInputChange('startDate', e.target.value)}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      required
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                   <div>
@@ -332,8 +334,7 @@ const EnergyLog = () => {
                       type="date"
                       value={formData.endDate}
                       onChange={(e) => handleInputChange('endDate', e.target.value)}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                      required
+                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
                   </div>
                 </div>
@@ -341,7 +342,7 @@ const EnergyLog = () => {
             </>
           )}
 
-          {/* Information Card */}
+          {/* Info Card (Unchanged) */}
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
             <div className="flex items-start space-x-3">
               <div className="flex-shrink-0">
@@ -360,29 +361,30 @@ const EnergyLog = () => {
               </div>
             </div>
           </div>
+          
+          {/* API Error Display */}
+          {apiError && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg text-center">
+              {apiError}
+            </div>
+          )}
 
-          {/* Submit Button */}
+          {/* Submit Button (Unchanged) */}
           <div className="bg-white rounded-lg shadow-sm p-6">
             <button
               type="submit"
-              disabled={!formData.estimatedEmission || isCalculating}
+              disabled={isLoading}
               className={`w-full font-semibold py-3 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
-                formData.estimatedEmission && !isCalculating
+                !isLoading
                   ? 'bg-purple-600 hover:bg-purple-700 text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              {isCalculating ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Calculating...</span>
-                </div>
-              ) : (
-                `Log ${logType === 'device' ? 'Device' : 'Monthly'} Emission (${formData.estimatedEmission ? formData.estimatedEmission.toFixed(2) : '0'} kg CO₂e)`
-              )}
+              {isLoading ? 'Loading...' : `Log ${logType === 'device' ? 'Device' : 'Monthly'} Emission`}
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   );

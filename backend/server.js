@@ -51,6 +51,9 @@ app.use("/api/device", deviceRoutes);
 const energyRoutes = require("./routes/energy");
 app.use("/api/energy", energyRoutes);
 
+const dashboardRoutes = require("./routes/dashboard");
+app.use("/api/dashboard", dashboardRoutes);
+
 
 // ✅ Start server
 const PORT = 5000;
