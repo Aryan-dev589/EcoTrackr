@@ -13,7 +13,8 @@ function Signup() {
     email: '',
     password: '',
     country_code: '',
-    state_code: ''
+    state_code: '',
+    city: ''
   });
   
   const [error, setError] = useState(null);
@@ -29,10 +30,10 @@ function Signup() {
     e.preventDefault();
     setError(null);
 
-    if (!formData.username || !formData.email || !formData.password || !formData.country_code || !formData.state_code) {
-        setError("All fields are required.");
-        return;
-    }
+  if (!formData.username || !formData.email || !formData.password || !formData.country_code || !formData.state_code || !formData.city) {
+    setError("All fields are required.");
+    return;
+  }
 
     try {
       const response = await api.post(
@@ -108,11 +109,21 @@ function Signup() {
             onChange={handleChange}
             className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
           />
+
           <input
             type="text"
             name="state_code"
             placeholder="State Code (e.g., IN-KA for Karnataka)"
             value={formData.state_code}
+            onChange={handleChange}
+            className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
+          />
+
+          <input
+            type="text"
+            name="city"
+            placeholder="City (e.g., Bangalore)"
+            value={formData.city}
             onChange={handleChange}
             className="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400"
           />

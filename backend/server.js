@@ -57,6 +57,9 @@ app.use("/api/dashboard", dashboardRoutes);
 const coachRoutes = require("./routes/coach");
 app.use("/api/coach", coachRoutes);
 
+const environmentRoutes = require("./routes/environment");
+app.use("/api/environment", environmentRoutes);
+
 // ✅ Start server
 const PORT = 5000;
 app.listen(PORT, () => {

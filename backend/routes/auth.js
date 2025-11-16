@@ -9,17 +9,17 @@ const router = express.Router();
 
 // --- SIGNUP (NOW RETURNS A TOKEN) ---
 router.post("/signup", (req, res) => {
-    const { username, email, password, country_code, state_code } = req.body;
+    const { username, email, password, country_code, state_code, city } = req.body;
 
-    if (!username || !email || !password || !country_code || !state_code) {
+    if (!username || !email || !password || !country_code || !state_code || !city) {
         return res.status(400).json({ error: "Please fill all required fields" });
     }
 
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     db.query(
-        "INSERT INTO users (username, email, password_hash, country_code, state_code) VALUES (?, ?, ?, ?, ?)",
-        [username, email, hashedPassword, country_code, state_code],
+        "INSERT INTO users (username, email, password_hash, country_code, state_code, city) VALUES (?, ?, ?, ?, ?, ?)",
+        [username, email, hashedPassword, country_code, state_code, city],
         (err, result) => {
             if (err) {
                 console.error(err);

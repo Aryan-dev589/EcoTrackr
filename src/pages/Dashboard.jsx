@@ -5,6 +5,7 @@ import FoodLog from './FoodLog';
 import PurchaseLog from './PurchaseLog';
 import EnergyLog from './EnergyLog';
 import AICoach from './AI';
+import AQIDashboard from './AQIDashboard';
 import { motion } from 'framer-motion';
 import { 
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -137,6 +138,12 @@ const Dashboard = () => {
           >
             <span className="text-xl">🤖</span> AI Coach
           </button>
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'aqi' ? 'text-white bg-blue-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-blue-400/30'} focus:outline-none`}
+            onClick={() => setView('aqi')}
+          >
+            <span className="text-xl">🌫️</span> AQI
+          </button>
           <button className="flex items-center gap-3 px-4 py-3 rounded-xl text-green-50 hover:bg-emerald-400/30 transition">
             <span className="text-xl">🏆</span> Gamification
           </button>
@@ -186,17 +193,17 @@ const Dashboard = () => {
             <EnergyLog />
           ) : view === 'ai' ? (
             <AICoach />
+          ) : view === 'aqi' ? (
+            <AQIDashboard />
           ) : (
-            
             // --- This is the main dashboard view ---
-            
             isLoading ? (
               <DashboardLoading />
             ) : error ? (
               <div className="bg-red-100 text-red-700 rounded-xl p-6 shadow text-center font-semibold">
                 {error}
               </div>
-            ) : dashboardData && ( 
+            ) : dashboardData && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
