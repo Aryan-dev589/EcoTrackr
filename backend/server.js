@@ -60,6 +60,12 @@ app.use("/api/coach", coachRoutes);
 const environmentRoutes = require("./routes/environment");
 app.use("/api/environment", environmentRoutes);
 
+const ecoActionRoutes = require("./routes/ecoAction");
+app.use("/api/eco-actions", ecoActionRoutes);
+
+const gamificationRoutes = require("./routes/gamification");
+app.use("/api/gamification", gamificationRoutes);
+
 // ✅ Start server
 const PORT = 5000;
 app.listen(PORT, () => {
