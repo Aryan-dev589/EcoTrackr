@@ -1,9 +1,50 @@
+
 const express = require("express");
 const fetch = require("node-fetch");
 const db = require("../db"); // Your database connection
 const { authenticateToken } = require("../middleware/checkAuth.js");
 
 const router = express.Router();
+
+// --- GLOBAL CO2 ENDPOINT ---
+// GET /api/environment/global-co2
+router.get("/global-co2", async (req, res) => {
+  try {
+    // 1. Check cache in DB
+    const [cacheRows] = await db.promise().query(
+      "SELECT value, last_updated FROM global_stats_cache WHERE stat_key = 'global_co2' AND last_updated > (NOW() - INTERVAL 24 HOUR)"
+    );
+    if (cacheRows.length > 0) {
+      // Cache is fresh
+      return res.json({ co2: parseFloat(cacheRows[0].value), last_updated: cacheRows[0].last_updated });
+    }
+
+    // 2. Fetch from external API
+    const apiUrl = "https://global-warming.org/api/co2-api";
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error("Failed to fetch global CO2 data");
+    const data = await response.json();
+    if (!data.co2 || !Array.isArray(data.co2) || data.co2.length === 0) throw new Error("Malformed CO2 API response");
+    // Get the most recent ppm value
+    const latest = data.co2[data.co2.length - 1];
+    const ppm = parseFloat(latest?.trend || latest?.cycle || latest?.mean);
+    if (isNaN(ppm)) throw new Error("Could not parse CO2 ppm value");
+
+    // 3. Update cache in DB
+    await db.promise().query(
+      `INSERT INTO global_stats_cache (stat_key, value, last_updated)
+        VALUES ('global_co2', ?, NOW())
+        ON DUPLICATE KEY UPDATE value = VALUES(value), last_updated = NOW()`,
+      [ppm]
+    );
+
+    // 4. Return new value
+    res.json({ co2: ppm, last_updated: new Date() });
+  } catch (err) {
+    console.error("Global CO2 route error:", err.message);
+    res.status(500).json({ message: "Error fetching global CO2 data.", error: err.message });
+  }
+});
 
 // --- THIS IS OUR "REQUEST LOCK" ---
 // This in-memory map will prevent a "thundering herd" of 1000s

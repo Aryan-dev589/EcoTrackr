@@ -11,7 +11,15 @@ function getFirstDayOfMonth() {
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
 }
 
-router.get("/data", authenticateToken, (req, res) => {
+// --- National Averages (hardcoded for demo) ---
+const nationalAverages = {
+  'IN': 158,   // India (kg/month)
+  'US': 1225, // United States
+  'GB': 683   // United Kingdom
+};
+const GLOBAL_AVERAGE = 500;
+
+router.get("/data", authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const firstDayOfMonthISO = getFirstDayOfMonth();
 
@@ -21,7 +29,26 @@ router.get("/data", authenticateToken, (req, res) => {
     return res.status(400).json({ message: "Missing 'today' date parameter." });
   }
 
-  // --- 1. DEFINE ALL SQL QUERIES ---
+  // --- 1A. Get user's country_code ---
+  let userCountryCode = null;
+  try {
+    const [userRow] = await new Promise((resolve, reject) => {
+      db.query('SELECT country_code FROM users WHERE user_id = ?', [userId], (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      });
+    });
+    userCountryCode = userRow ? userRow.country_code : null;
+  } catch (err) {
+    console.error('Error fetching user country_code:', err);
+    userCountryCode = null;
+  }
+
+  // --- 1B. Lookup national average ---
+  const nationalAverage =
+    (userCountryCode && nationalAverages[userCountryCode])
+      ? nationalAverages[userCountryCode]
+      : GLOBAL_AVERAGE;
 
   // --- Emission Queries (Existing) ---
   const todayQuery = `
@@ -90,14 +117,7 @@ router.get("/data", authenticateToken, (req, res) => {
   `;
   const allLogsParams = [userId, firstDayOfMonthISO, userId, firstDayOfMonthISO, userId, firstDayOfMonthISO, userId, firstDayOfMonthISO];
 
-  // --- NEW SAVINGS QUERIES (FOR PHASE 4) ---
-  const todaySavedQuery = `
-    SELECT SUM(total_saved_kg) as todaySaved
-    FROM eco_action_logs
-    WHERE user_id = ? AND DATE(log_date) = ?
-  `;
-  const todaySavedParams = [userId, userTodayISO];
-
+  // --- NEW SAVINGS QUERY (Monthly Only) ---
   const monthlySavedQuery = `
     SELECT SUM(total_saved_kg) as monthlySaved
     FROM eco_action_logs
@@ -114,19 +134,18 @@ router.get("/data", authenticateToken, (req, res) => {
   const pTrend = new Promise((resolve, reject) => db.query(trendQuery, trendParams, (err, r) => err ? reject(err) : resolve(r)));
   const pAllLogs = new Promise((resolve, reject) => db.query(allLogsQuery, allLogsParams, (err, r) => err ? reject(err) : resolve(r)));
   
-  // --- NEW PROMISES ---
-  const pTodaySaved = new Promise((resolve, reject) => db.query(todaySavedQuery, todaySavedParams, (err, r) => err ? reject(err) : resolve(r)));
+  // --- NEW PROMISE ---
   const pMonthlySaved = new Promise((resolve, reject) => db.query(monthlySavedQuery, monthlySavedParams, (err, r) => err ? reject(err) : resolve(r)));
 
 
   // --- 3. RUN ALL QUERIES IN PARALLEL ---
   Promise.all([
     pToday, pBreakdown, pEnergy, pDeviceEnergy, pTrend, pAllLogs, 
-    pTodaySaved, pMonthlySaved // <-- ADDED NEW PROMISES
+    pMonthlySaved // <-- ADDED NEW PROMISE
   ])
     .then(([
       todayResult, breakdownResult, energyResult, deviceEnergyResult, trendResult, allLogsResult,
-      todaySavedResult, monthlySavedResult // <-- ADDED NEW RESULTS
+      monthlySavedResult // <-- ADDED NEW RESULT
     ]) => {
 
       // --- 4. PROCESS ALL DATA ---
@@ -184,7 +203,6 @@ router.get("/data", authenticateToken, (req, res) => {
         : [];
       
       // --- NEW SAVINGS DATA ---
-      const todaySaved = parseFloat(todaySavedResult[0].todaySaved) || 0;
       const monthlySaved = parseFloat(monthlySavedResult[0].monthlySaved) || 0;
 
       // --- 5. SEND THE FINAL UPGRADED JSON OBJECT ---
@@ -206,9 +224,10 @@ router.get("/data", authenticateToken, (req, res) => {
         highImpactLogs: highImpactLogs,
         lowImpactLogs: lowImpactLogs,
         
-        // --- NEW DATA ---
-        todaySaved: parseFloat(todaySaved.toFixed(1)),
-        monthlySaved: parseFloat(monthlySaved.toFixed(1))
+        // --- NEW DATA (todaySaved removed) ---
+        monthlySaved: parseFloat(monthlySaved.toFixed(1)),
+        // --- NATIONAL AVERAGE ---
+        nationalAverage: nationalAverage
       });
       
     })

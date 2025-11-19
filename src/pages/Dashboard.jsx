@@ -1,3 +1,4 @@
+import GlobalCO2 from './GlobalCO2';
 // components/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import TravelLog from './TravelLog';
@@ -84,6 +85,21 @@ const Dashboard = () => {
 
   const barChartData = dashboardData ? dashboardData.monthlyTrend : [];
 
+  // --- National Comparison Helper ---
+  function getComparison() {
+    if (!dashboardData || typeof dashboardData.nationalAverage !== 'number') return null;
+    const diff = dashboardData.monthlyTotal - dashboardData.nationalAverage;
+    const absDiff = Math.abs(diff).toFixed(1);
+    const isLower = diff < 0;
+    return {
+      diff: absDiff,
+      label: isLower ? 'Lower than average' : 'Higher than average',
+      color: isLower ? 'text-green-600' : 'text-red-600',
+      bg: isLower ? 'bg-green-50' : 'bg-red-50',
+      country: dashboardData.nationalAverage === 158 ? 'India' : dashboardData.nationalAverage === 1225 ? 'United States' : dashboardData.nationalAverage === 683 ? 'United Kingdom' : 'Global'
+    };
+  }
+
   // --- Main Render ---
   return (
     <div className="min-h-screen relative pb-20 overflow-x-hidden flex" style={{
@@ -92,7 +108,6 @@ const Dashboard = () => {
       {/* Sidebar Navigation (Unchanged) */}
       <aside className="hidden md:flex flex-col w-60 min-h-screen bg-gradient-to-b from-green-700 via-emerald-600 to-green-400 shadow-2xl z-20 py-8 px-4 gap-2 border-r border-green-200">
         <nav className="flex flex-col gap-2 mt-2">
-          
           <button
             className={`flex items-center gap-3 px-4 py-3 rounded-xl font-semibold ${view === 'dashboard' ? 'text-white bg-emerald-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-emerald-400/30'} focus:outline-none`}
             onClick={() => setView('dashboard')}
@@ -147,6 +162,13 @@ const Dashboard = () => {
           >
             <span className="text-xl">🏆</span> Badges & Achievements
           </button>
+          {/* Global CO2 Button */}
+          <button
+            className={`flex items-center gap-3 px-4 py-3 rounded-xl ${view === 'global' ? 'text-white bg-blue-500/80 shadow-inner ring-2 ring-white/20' : 'text-green-50 hover:bg-blue-400/30'} focus:outline-none`}
+            onClick={() => setView('global')}
+          >
+            <span className="text-xl">🌍</span> Global CO₂
+          </button>
         </nav>
         <div className="flex-1"></div>
         <div className="flex justify-center mt-8">
@@ -193,10 +215,10 @@ const Dashboard = () => {
             <EcoActionLog /> 
           ) : view === 'badges' ? ( 
             <BadgesPage />
+          ) : view === 'global' ? (
+            <GlobalCO2 />
           ) : (
-            
             // --- This is the main dashboard view ---
-            
             isLoading ? (
               <DashboardLoading />
             ) : error ? (
@@ -210,8 +232,7 @@ const Dashboard = () => {
                 transition={{ duration: 0.5 }}
                 className="space-y-8"
               >
-                
-                {/* --- 1. YOUR LAYOUT: Today's Card (Full Width) --- */}
+                {/* --- 1. Today's Emissions Card --- */}
                 <div className="grid grid-cols-1 gap-8 mb-8">
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 flex flex-col items-center justify-center">
                     <h2 className="text-2xl font-bold text-emerald-700 mb-2">Today's Emissions</h2>
@@ -219,11 +240,10 @@ const Dashboard = () => {
                       {dashboardData.todayTotal}
                       <span className="text-lg font-medium text-emerald-400 ml-2">kg CO₂</span>
                     </div>
-                    {/* TodaySaved is no longer displayed here, as requested */}
                   </div>
                 </div>
 
-                {/* --- 2. YOUR LAYOUT: Monthly Cards (Side-by-Side) --- */}
+                {/* --- 2. Monthly Cards (Total & Saved) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                   {/* Monthly Total Emissions Card */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 flex flex-col items-center justify-center">
@@ -236,8 +256,7 @@ const Dashboard = () => {
                       For {new Date().toLocaleString('default', { month: 'long' })}
                     </div>
                   </div>
-                  
-                  {/* --- 3. YOUR NEW CARD: Monthly Carbon Saved --- */}
+                  {/* Monthly Carbon Saved Card */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 flex flex-col items-center justify-center border-2 border-green-300">
                     <h2 className="text-2xl font-bold text-green-700 mb-2">Monthly Carbon Saved</h2>
                     <div className="text-5xl font-extrabold text-green-600 mb-2">
@@ -250,25 +269,43 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* --- (Rest of the dashboard is unchanged) --- */}
-
-                {/* Hotspot Card */}
-                <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100">
-                  <h2 className="text-xl font-semibold text-gray-700 mb-4">Your Monthly Snapshot</h2>
-                  {dashboardData.monthlyTotal > 0 ? (
-                    <div className="text-center">
-                      <p className="text-lg text-gray-600">Your biggest impact this month is from</p>
-                      <p className="text-4xl font-bold text-green-600 my-2">{dashboardData.hotspot.category}</p>
-                      <p className="text-lg text-gray-600">making up <span className="font-bold">{dashboardData.hotspot.percentage}%</span> of your monthly total.</p>
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <p className="text-lg text-gray-600">Log your first activity to see your monthly snapshot!</p>
-                    </div>
-                  )}
+                {/* --- 3. Hotspot & National Comparison Cards --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                  {/* Hotspot Card */}
+                  <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100">
+                    <h2 className="text-xl font-semibold text-gray-700 mb-4">Your Monthly Snapshot</h2>
+                    {dashboardData.monthlyTotal > 0 ? (
+                      <div className="text-center">
+                        <p className="text-lg text-gray-600">Your biggest impact this month is from</p>
+                        <p className="text-4xl font-bold text-green-600 my-2">{dashboardData.hotspot.category}</p>
+                        <p className="text-lg text-gray-600">making up <span className="font-bold">{dashboardData.hotspot.percentage}%</span> of your monthly total.</p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <p className="text-lg text-gray-600">Log your first activity to see your monthly snapshot!</p>
+                      </div>
+                    )}
+                  </div>
+                  {/* National Comparison Card */}
+                  <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-blue-100 flex flex-col items-center justify-center">
+                    <h2 className="text-xl font-semibold text-blue-700 mb-4 flex items-center gap-2">
+                      <i className="fas fa-flag"></i> National Comparison
+                    </h2>
+                    {dashboardData.nationalAverage !== undefined && (
+                      <>
+                        <div className="text-lg text-gray-600 mb-2">
+                          {getComparison()?.country} Average: <span className="font-bold text-blue-700">{dashboardData.nationalAverage} kg/mo</span>
+                        </div>
+                        <div className={`text-4xl font-extrabold mb-2 ${getComparison()?.color}`}>
+                          {getComparison()?.diff} kg
+                        </div>
+                        <div className={`text-md font-semibold ${getComparison()?.color}`}>{getComparison()?.label}</div>
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                {/* Pie Chart & Bar Chart */}
+                {/* --- 4. Pie Chart & Bar Chart --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Pie Chart Card */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 flex flex-col items-center justify-center">
@@ -299,7 +336,6 @@ const Dashboard = () => {
                       </div>
                     )}
                   </div>
-
                   {/* Bar Chart: Monthly Trend */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-6">
                     <h2 className="text-xl font-bold text-emerald-700 mb-4">Monthly Emission Trend</h2>
@@ -321,8 +357,8 @@ const Dashboard = () => {
                     )}
                   </div>
                 </div>
-                
-                {/* High and Low Impact Logs */}
+
+                {/* --- 5. High and Low Impact Logs --- */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* High-Impact Logs */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-red-100">
@@ -342,7 +378,6 @@ const Dashboard = () => {
                       )}
                     </ul>
                   </div>
-                  
                   {/* Low-Carbon Wins */}
                   <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100">
                     <h3 className="text-xl font-semibold text-green-700 mb-4 flex items-center gap-2">
@@ -362,14 +397,14 @@ const Dashboard = () => {
                     </ul>
                   </div>
                 </div>
-                
-                {/* Other Dummy Cards (ML, AQI) */}
+
+                {/* --- 6. Dummy Cards (ML, AQI) --- */}
                 <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-green-100 flex flex-col md:flex-row items-center gap-6">
-                   {/* ... (ML Forecast card) ... */}
-                 </div>
-                 <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-blue-100 flex flex-col md:flex-row items-center gap-6 mb-8">
-                   {/* ... (AQI card) ... */}
-                 </div>
+                  {/* ... (ML Forecast card) ... */}
+                </div>
+                <div className="bg-white/90 rounded-3xl shadow-lg p-8 border border-blue-100 flex flex-col md:flex-row items-center gap-6 mb-8">
+                  {/* ... (AQI card) ... */}
+                </div>
               </motion.div>
             )
           )}
