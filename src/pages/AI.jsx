@@ -154,7 +154,7 @@ const AICoach = () => {
     ];
 
     // --- D. Call the Gemini API ---
-    const apiKey = "AIzaSyCrkSROHkvOPGBN0OLOM-GivlwmVSG8E98"; // Leave this as-is
+    const apiKey = "Google_Gemini_API_key"; // Leave this as-is
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
 
     const payload = {
