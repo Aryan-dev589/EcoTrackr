@@ -138,6 +138,81 @@ carbon-tracker/
 
 ---
 
+## 🗄️ Database Schema
+
+EcoTrackr runs on a normalized **MySQL** schema of **17 tables**, split into four groups: user identity, per-category activity logs, scientific emission-factor reference data, and supporting cache/gamification tables. The full DDL lives in [`database/schema.sql`](./database/schema.sql).
+
+### Tables (`SHOW TABLES`)
+
+```
+aqi_cache                     eco_action_logs               monthly_energy_logs
+badges                        food_emission_factors         purchase_logs
+carbon_savings_factors        food_logs                     travel_logs
+device_consumption_factors    global_stats_cache            user_badges
+device_usage_logs             grid_emission_factors         users
+                               item_embodied_factors         vehicle_emission_factors
+```
+
+| Group | Tables | Purpose |
+|---|---|---|
+| **Identity** | `users` | Account data + location, used for grid/AQI lookups |
+| **Activity logs** | `travel_logs`, `food_logs`, `purchase_logs`, `device_usage_logs`, `monthly_energy_logs`, `eco_action_logs` | One row per logged action, each FK'd to its emission-factor table |
+| **Emission factors** | `vehicle_emission_factors`, `food_emission_factors`, `item_embodied_factors`, `device_consumption_factors`, `grid_emission_factors`, `carbon_savings_factors` | IPCC/FAO/Climatiq-sourced factors used in the calculation formula above |
+| **Gamification** | `badges`, `user_badges` | Badge catalog + per-user earned badges |
+| **Caching** | `aqi_cache`, `global_stats_cache` | Backs the AQI/CO₂ smart-caching described above (3-hour TTL) |
+
+### Confirmed table structure (`DESC`)
+
+**`users`**
+
+| Field | Type | Null | Key | Default | Extra |
+|---|---|---|---|---|---|
+| user_id | int | NO | PRI | NULL | auto_increment |
+| username | varchar(50) | NO | UNI | NULL | |
+| email | varchar(255) | NO | UNI | NULL | |
+| password_hash | varchar(255) | NO | | NULL | |
+| country_code | varchar(10) | NO | | NULL | |
+| state_code | varchar(10) | NO | | NULL | |
+| city | varchar(100) | YES | | NULL | |
+| created_at | timestamp | YES | | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+
+**`travel_logs`**
+
+| Field | Type | Null | Key | Default | Extra |
+|---|---|---|---|---|---|
+| log_id | int | NO | PRI | NULL | auto_increment |
+| user_id | int | NO | MUL | NULL | |
+| vehicle_factor_id | int | NO | MUL | NULL | |
+| distance | decimal(10,2) | NO | | NULL | |
+| total_emissions | decimal(10,4) | NO | | NULL | |
+| log_date | datetime | NO | | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+
+**`food_logs`**
+
+| Field | Type | Null | Key | Default | Extra |
+|---|---|---|---|---|---|
+| log_id | int | NO | PRI | NULL | auto_increment |
+| user_id | int | NO | MUL | NULL | |
+| food_factor_id | int | NO | MUL | NULL | |
+| quantity | decimal(10,1) | NO | | NULL | |
+| total_emissions | decimal(10,4) | NO | | NULL | |
+| log_date | datetime | NO | | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+
+**`device_usage_logs`**
+
+| Field | Type | Null | Key | Default | Extra |
+|---|---|---|---|---|---|
+| log_id | int | NO | PRI | NULL | auto_increment |
+| user_id | int | NO | MUL | NULL | |
+| device_factor_id | int | NO | MUL | NULL | |
+| usage_duration | decimal(10,2) | NO | | NULL | |
+| total_emissions | decimal(10,4) | NO | | NULL | |
+| log_date | datetime | NO | | CURRENT_TIMESTAMP | DEFAULT_GENERATED |
+
+*The remaining tables (`purchase_logs`, `monthly_energy_logs`, `eco_action_logs`, `badges`, `user_badges`, and all `*_factors`/`*_cache` tables) follow the same `log_id / user_id / factor_id / quantity / total_emissions / log_date` convention and are fully defined — including foreign keys and indexes — in [`database/schema.sql`](./database/schema.sql).*
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
