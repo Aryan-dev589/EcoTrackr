@@ -258,6 +258,7 @@ Create `backend/.env`:
 ```env
 JWT_SECRET=your_jwt_secret_here
 AQI_API_KEY=your_waqi_api_token_here
+GEMINI_API_KEY=your_Google Gemini_api_key_here
 ```
 
 Get a free WAQI token at [aqicn.org/data-platform/token](https://aqicn.org/data-platform/token/).
