@@ -157,7 +157,7 @@ device_usage_logs             grid_emission_factors         users
 |---|---|---|
 | **Identity** | `users` | Account data + location, used for grid/AQI lookups |
 | **Activity logs** | `travel_logs`, `food_logs`, `purchase_logs`, `device_usage_logs`, `monthly_energy_logs`, `eco_action_logs` | One row per logged action, each FK'd to its emission-factor table |
-| **Emission factors** | `vehicle_emission_factors`, `food_emission_factors`, `item_embodied_factors`, `device_consumption_factors`, `grid_emission_factors`, `carbon_savings_factors` | IPCC/FAO/Climatiq-sourced factors used in the calculation formula above |
+| **Emission factors** | `vehicle_emission_factors`, `food_emission_factors`, `item_embodied_factors`, `device_consumption_factors`, `grid_emission_factors`, `carbon_savings_factors` | IPCC/FAO/DEFRA/Climatiq-sourced factors used in the calculation formula above |
 | **Gamification** | `badges`, `user_badges` | Badge catalog + per-user earned badges |
 | **Caching** | `aqi_cache`, `global_stats_cache` | Backs the AQI/CO₂ smart-caching described above (3-hour TTL) |
 
